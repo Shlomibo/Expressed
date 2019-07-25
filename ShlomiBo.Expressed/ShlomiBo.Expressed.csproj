@@ -3,6 +3,13 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
+    <Authors>ShlomiBo</Authors>
+    <Copyright>Shlomi Borovitz</Copyright>
+    <Description>Expression composition and translation made easy</Description>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/Shlomibo/Expressed</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <PackageTags>Expression,Composition,LINQ</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -12,5 +19,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DocumentationFile>C:\Users\Shlomi\Documents\Projects\Packages\ShlomiBo.Expressed\ShlomiBo.Expressed\ShlomiBo.Expressed.xml</DocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>
