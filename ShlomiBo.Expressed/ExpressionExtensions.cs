@@ -14,6 +14,18 @@ namespace ShlomiBo.Expressed
 	{
 		#region Methods
 
+		/// <summary>
+		/// Combines the body from an expression, into a second expression, having access to the input
+		/// </summary>
+		/// <typeparam name="TInput">Type of expression input</typeparam>
+		/// <typeparam name="TMiddle">Result type of this expression</typeparam>
+		/// <typeparam name="TOutput">Result type of result expression</typeparam>
+		/// <param name="first">This expression arg</param>
+		/// <param name="second">Seconds expression arg</param>
+		/// <returns>
+		/// An expression from that gets TInput, and returns the seconds expression result,
+		/// by inlining the first expression and the input into the second expression
+		/// </returns>
 		public static Expression<Func<TInput, TOutput>> CombineBodyWith<TInput, TMiddle, TOutput>(
 			this Expression<Func<TInput, TMiddle>> first,
 			Expression<Func<TInput, TMiddle, TOutput>> second)
@@ -40,6 +52,17 @@ namespace ShlomiBo.Expressed
 			return Lambda<Func<TInput, TOutput>>(body, firstParam);
 		}
 
+		/// <summary>
+		/// Creates an expression from the input of this expression, to the output of the other expression,
+		/// by inlining the body of the first expression into the second
+		/// </summary>
+		/// <seealso cref="PrependTo{TInput, TMiddle, TOutput}(Expression{Func{TInput, TMiddle}}, Expression{Func{TMiddle, TOutput}})"/>
+		/// <typeparam name="TInput">The input type</typeparam>
+		/// <typeparam name="TMiddle">The output of the first expression, and input of the second</typeparam>
+		/// <typeparam name="TOutput">The output of the seconds expression</typeparam>
+		/// <param name="first">This expression</param>
+		/// <param name="second">The expression to pipe the output to</param>
+		/// <returns>An expression from the input of this expression, to the output of the other expression</returns>
 		public static Expression<Func<TInput, TOutput>> Pipe<TInput, TMiddle, TOutput>(
 			this Expression<Func<TInput, TMiddle>> first,
 			Expression<Func<TMiddle, TOutput>> second)
@@ -47,6 +70,17 @@ namespace ShlomiBo.Expressed
 			return first.PrependTo(second);
 		}
 
+		/// <summary>
+		/// Creates an expression from the input of this expression, to the output of the other expression,
+		/// by inlining the body of the first expression into the second
+		/// </summary>
+		/// <seealso cref="Pipe{TInput, TMiddle, TOutput}(Expression{Func{TInput, TMiddle}}, Expression{Func{TMiddle, TOutput}})"/>
+		/// <typeparam name="TInput">The input type</typeparam>
+		/// <typeparam name="TMiddle">The output of the first expression, and input of the second</typeparam>
+		/// <typeparam name="TOutput">The output of the seconds expression</typeparam>
+		/// <param name="first">This expression</param>
+		/// <param name="second">The expression to pipe the output to</param>
+		/// <returns>An expression from the input of this expression, to the output of the other expression</returns>
 		public static Expression<Func<TInput, TOutput>> PrependTo<TInput, TMiddle, TOutput>(
 			this Expression<Func<TInput, TMiddle>> first,
 			Expression<Func<TMiddle, TOutput>> second)
@@ -69,6 +103,17 @@ namespace ShlomiBo.Expressed
 			return Lambda<Func<TInput, TOutput>>(body, input);
 		}
 
+		/// <summary>
+		/// Creates an expression from the input of the other expression, to the output of this expression,
+		/// by inlining the body of the first expression into the second
+		/// </summary>
+		/// <seealso cref="AppendTo{TInput, TMiddle, TOutput}(Expression{Func{TMiddle, TOutput}}, Expression{Func{TInput, TMiddle}})"/>
+		/// <typeparam name="TInput">The input type</typeparam>
+		/// <typeparam name="TMiddle">The output of the first expression, and input of the second</typeparam>
+		/// <typeparam name="TOutput">The output of the seconds expression</typeparam>
+		/// <param name="first">This expression</param>
+		/// <param name="second">The expression to compose with this expression</param>
+		/// <returns>An expression from the input of the other expression, to the output of this expression</returns>
 		public static Expression<Func<TInput, TOutput>> Compose<TInput, TMiddle, TOutput>(
 			this Expression<Func<TMiddle, TOutput>> second,
 			Expression<Func<TInput, TMiddle>> first)
@@ -76,71 +121,22 @@ namespace ShlomiBo.Expressed
 			return second.AppendTo(first);
 		}
 
+		/// <summary>
+		/// Creates an expression from the input of the other expression, to the output of this expression,
+		/// by inlining the body of the first expression into the second
+		/// </summary>
+		/// <seealso cref="Compose{TInput, TMiddle, TOutput}(Expression{Func{TMiddle, TOutput}}, Expression{Func{TInput, TMiddle}})"/>
+		/// <typeparam name="TInput">The input type</typeparam>
+		/// <typeparam name="TMiddle">The output of the first expression, and input of the second</typeparam>
+		/// <typeparam name="TOutput">The output of the seconds expression</typeparam>
+		/// <param name="first">This expression</param>
+		/// <param name="second">The expression to compose with this expression</param>
+		/// <returns>An expression from the input of the other expression, to the output of this expression</returns>
 		public static Expression<Func<TInput, TOutput>> AppendTo<TInput, TMiddle, TOutput>(
 			this Expression<Func<TMiddle, TOutput>> second,
 			Expression<Func<TInput, TMiddle>> first)
 		{
 			return first.PrependTo(second);
-		}
-
-		public static Expression<Func<(T1, T1), T>> ToMultiArry<T1, T2, T>(
-			this Expression<Func<T1, T1, T>> twoArgsExpression)
-		{
-			if (twoArgsExpression == null)
-			{
-				throw new ArgumentNullException(nameof(twoArgsExpression));
-			}
-
-			var arg2 = twoArgsExpression.Parameters[1];
-
-			var tupleType = typeof((T1, T2));
-			var tupleArg = Parameter(typeof((T1, T2)));
-
-			var firstAccess = MakeMemberAccess(
-				tupleArg,
-				tupleType.GetProperty(nameof(ValueTuple<T1, T2>.Item1)));
-			var secondsAccess = MakeMemberAccess(
-				tupleArg,
-				tupleType.GetProperty(nameof(ValueTuple<T1, T2>.Item2)));
-
-			return Lambda<Func<(T1, T1), T>>(
-				twoArgsExpression.Body.ReplaceSubExpression(new Dictionary<Expression, Expression>
-				{
-					[twoArgsExpression.Parameters[0]] = firstAccess,
-					[twoArgsExpression.Parameters[1]] = secondsAccess,
-				}),
-				tupleArg);
-		}
-
-		public static Expression<Func<T1, T1, T>> ToOneArry<T1, T2, T>(
-			this Expression<Func<(T1, T1), T>> pairExpression)
-		{
-			if (pairExpression == null)
-			{
-				throw new ArgumentNullException(nameof(pairExpression));
-			}
-
-			var arg1 = Parameter(typeof(T1));
-			var arg2 = Parameter(typeof(T2));
-			var tupleType = typeof(ValueTuple<T1, T2>);
-
-			return Lambda<Func<T1, T1, T>>(
-				pairExpression.Body.ReplaceSubExpression(TupleReplacement),
-				arg1,
-				arg2);
-
-			Expression TupleReplacement(Expression exp)
-			{
-				if (!(exp is MemberExpression member) ||
-					member.Type != tupleType)
-				{
-					return null;
-				}
-
-				return member.Member == tupleType.GetProperty(nameof(ValueTuple<T1, T2>.Item1)) ? arg1 :
-					member.Member == tupleType.GetProperty(nameof(ValueTuple<T1, T2>.Item2)) ? arg2 :
-					null;
-			}
 		}
 
 		#endregion Methods
