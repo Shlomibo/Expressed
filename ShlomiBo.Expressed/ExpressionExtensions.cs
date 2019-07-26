@@ -7,6 +7,9 @@ namespace ShlomiBo.Expressed
 {
 	using static Expression;
 
+	/// <summary>
+	/// Provides Expression extensions
+	/// </summary>
 	public static partial class ExpressionExtensions
 	{
 		#region Methods
@@ -37,7 +40,14 @@ namespace ShlomiBo.Expressed
 			return Lambda<Func<TInput, TOutput>>(body, firstParam);
 		}
 
-		public static Expression<Func<TInput, TOutput>> CombineWith<TInput, TMiddle, TOutput>(
+		public static Expression<Func<TInput, TOutput>> Pipe<TInput, TMiddle, TOutput>(
+			this Expression<Func<TInput, TMiddle>> first,
+			Expression<Func<TMiddle, TOutput>> second)
+		{
+			return first.PrependTo(second);
+		}
+
+		public static Expression<Func<TInput, TOutput>> PrependTo<TInput, TMiddle, TOutput>(
 			this Expression<Func<TInput, TMiddle>> first,
 			Expression<Func<TMiddle, TOutput>> second)
 		{
@@ -59,11 +69,18 @@ namespace ShlomiBo.Expressed
 			return Lambda<Func<TInput, TOutput>>(body, input);
 		}
 
-		public static Expression<Func<TInput, TOutput>> PrependWith<TInput, TMiddle, TOutput>(
+		public static Expression<Func<TInput, TOutput>> Compose<TInput, TMiddle, TOutput>(
 			this Expression<Func<TMiddle, TOutput>> second,
 			Expression<Func<TInput, TMiddle>> first)
 		{
-			return first.CombineWith(second);
+			return second.AppendTo(first);
+		}
+
+		public static Expression<Func<TInput, TOutput>> AppendTo<TInput, TMiddle, TOutput>(
+			this Expression<Func<TMiddle, TOutput>> second,
+			Expression<Func<TInput, TMiddle>> first)
+		{
+			return first.PrependTo(second);
 		}
 
 		public static Expression<Func<(T1, T1), T>> ToMultiArry<T1, T2, T>(
