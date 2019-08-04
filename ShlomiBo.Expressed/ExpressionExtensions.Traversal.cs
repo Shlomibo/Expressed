@@ -13,6 +13,15 @@ namespace ShlomiBo.Expressed
 	{
 		#region Methods
 
+		/// <summary>
+		/// Traverse an expression tree, allowing generation of new expressions from it
+		/// </summary>
+		/// <param name="expression">The expression to traverse</param>
+		/// <param name="traversal">A function that run against each sub-expression</param>
+		/// <returns>
+		/// Traversal result that determines the result of the traversal,
+		/// if subexpressions should be traversed as well, and if traversal should continue
+		/// </returns>
 		public static TraversalResult Traverse(
 			this Expression expression,
 			Func<Expression, ExpressionTraversal> traversal)
@@ -26,6 +35,7 @@ namespace ShlomiBo.Expressed
 				throw new ArgumentNullException(nameof(traversal));
 			}
 
+			bool didBreak = false;
 			return Implementation(expression);
 
 			TraversalResult Implementation(Expression exp)
@@ -34,6 +44,10 @@ namespace ShlomiBo.Expressed
 				{
 					return new TraversalResult(null, true);
 				}
+				if (didBreak)
+				{
+					return new TraversalResult(exp, false);
+				}
 
 				ExpressionTraversal traversalResult = traversal(exp) ?? ExpressionTraversal.Default;
 
@@ -41,268 +55,75 @@ namespace ShlomiBo.Expressed
 
 				if (traversalResult.Break || !traversalResult.TraverseSubTree)
 				{
+					if (traversalResult.Break)
+					{
+						didBreak = true;
+					}
+
 					return new TraversalResult(exp, !traversalResult.Break);
 				}
 
-				var unary = exp as UnaryExpression;
-				var binary = exp as BinaryExpression;
-				var conditional = exp as ConditionalExpression;
-				var invocation = exp as InvocationExpression;
-				var methodCall = exp as MethodCallExpression;
-				var lambda = exp as LambdaExpression;
-				var listInit = exp as ListInitExpression;
-				var member = exp as MemberExpression;
-				var @new = exp as NewExpression;
-				var newArray = exp as NewArrayExpression;
-				var typeBinary = exp as TypeBinaryExpression;
-				var block = exp as BlockExpression;
-				var @dynamic = exp as DynamicExpression;
-				var @goto = exp as GotoExpression;
-				var index = exp as IndexExpression;
-				var label = exp as LabelExpression;
-				var runtimeVariables = exp as RuntimeVariablesExpression;
-				var loop = exp as LoopExpression;
-				var @switch = exp as SwitchExpression;
-				var @try = exp as TryExpression;
-
-				switch (exp.NodeType)
+				switch (exp)
 				{
-					case ExpressionType.Add:
-						return Binary(binary, Add);
+					case UnaryExpression unary:
+						return UnaryExpressions(unary);
 
-					case ExpressionType.AddChecked:
-						return Binary(binary, AddChecked);
+					case BinaryExpression binary:
+						return BinaryExpressions(binary);
 
-					case ExpressionType.And:
-						return Binary(binary, And);
-
-					case ExpressionType.AndAlso:
-						return Binary(binary, AndAlso);
-
-					case ExpressionType.ArrayLength:
-						return Unary(unary, ArrayLength);
-
-					case ExpressionType.ArrayIndex:
-						return Binary(binary, ArrayIndex);
-
-					case ExpressionType.Call:
+					case MethodCallExpression methodCall:
 						return MethodCall(methodCall, Call);
 
-					case ExpressionType.Coalesce:
-						return Binary(binary, Coalesce);
-
-					case ExpressionType.Conditional:
+					case ConditionalExpression conditional:
 						return Conditional(conditional, Condition);
 
-					case ExpressionType.Convert:
-						return Unary(unary, ex => Convert(ex, unary.Type));
-
-					case ExpressionType.ConvertChecked:
-						return Unary(unary, ex => ConvertChecked(ex, unary.Type));
-
-					case ExpressionType.Divide:
-						return Binary(binary, Divide);
-
-					case ExpressionType.Equal:
-						return Binary(binary, Equal);
-
-					case ExpressionType.ExclusiveOr:
-						return Binary(binary, ExclusiveOr);
-
-					case ExpressionType.GreaterThan:
-						return Binary(binary, GreaterThan);
-
-					case ExpressionType.GreaterThanOrEqual:
-						return Binary(binary, GreaterThanOrEqual);
-
-					case ExpressionType.Invoke:
+					case InvocationExpression invocation:
 						return Invocation(invocation, Invoke);
 
-					case ExpressionType.Lambda:
+					case LambdaExpression lambda:
 						return LambdaExpression(lambda, Lambda);
 
-					case ExpressionType.LeftShift:
-						return Binary(binary, LeftShift);
-
-					case ExpressionType.LessThan:
-						return Binary(binary, LessThan);
-
-					case ExpressionType.LessThanOrEqual:
-						return Binary(binary, LessThanOrEqual);
-
-					case ExpressionType.ListInit:
+					case ListInitExpression listInit:
 						return ListInitExpression(listInit, ListInit);
 
-					case ExpressionType.MemberAccess:
+					case MemberExpression member:
 						return MemberExpression(member, MakeMemberAccess);
 
-					case ExpressionType.Modulo:
-						return Binary(binary, Modulo);
-
-					case ExpressionType.Multiply:
-						return Binary(binary, Multiply);
-
-					case ExpressionType.MultiplyChecked:
-						return Binary(binary, MultiplyChecked);
-
-					case ExpressionType.Negate:
-						return Unary(unary, Negate);
-
-					case ExpressionType.UnaryPlus:
-						return Unary(unary, UnaryPlus);
-
-					case ExpressionType.NegateChecked:
-						return Unary(unary, NegateChecked);
-
-					case ExpressionType.New:
+					case NewExpression @new:
 						return NewExpression(@new, New);
 
-					case ExpressionType.NewArrayInit:
-						return NewArrayExpression(newArray, NewArrayInit);
+					case NewArrayExpression newArray:
+						return NewArrayExpressions(newArray);
 
-					case ExpressionType.NewArrayBounds:
-						return NewArrayExpression(newArray, NewArrayBounds);
+					case TypeBinaryExpression typeBinary:
+						return TypeBinaryExpressions(typeBinary);
 
-					case ExpressionType.Not:
-						return Unary(unary, Not);
-
-					case ExpressionType.NotEqual:
-						return Binary(binary, NotEqual);
-
-					case ExpressionType.Or:
-						return Binary(binary, Or);
-
-					case ExpressionType.OrElse:
-						return Binary(binary, OrElse);
-
-					case ExpressionType.Power:
-						return Binary(binary, Power);
-
-					case ExpressionType.Quote:
-						return Unary(unary, Quote);
-
-					case ExpressionType.RightShift:
-						return Binary(binary, RightShift);
-
-					case ExpressionType.Subtract:
-						return Binary(binary, Subtract);
-
-					case ExpressionType.SubtractChecked:
-						return Binary(binary, SubtractChecked);
-
-					case ExpressionType.TypeAs:
-						return Unary(unary, ex => TypeAs(ex, unary.Type));
-
-					case ExpressionType.TypeIs:
-						return TypeBinaryExpression(typeBinary, TypeIs);
-
-					case ExpressionType.Assign:
-						return Binary(binary, Assign);
-
-					case ExpressionType.Block:
+					case BlockExpression block:
 						return BlockExpression(block, Block);
 
-					case ExpressionType.Decrement:
-						return Unary(unary, Decrement);
-
-					case ExpressionType.Dynamic:
+					case DynamicExpression dynamic:
 						return DynamicExpression(dynamic, Dynamic);
 
-					case ExpressionType.Goto:
+					case GotoExpression @goto:
 						return GotoExpression(@goto, Goto);
 
-					case ExpressionType.Increment:
-						return Unary(unary, Increment);
-
-					case ExpressionType.Index:
+					case IndexExpression index:
 						return IndexExpression(index, MakeIndex);
 
-					case ExpressionType.Label:
+					case LabelExpression label:
 						return LabelExpression(label, Label);
 
-					case ExpressionType.RuntimeVariables:
+					case RuntimeVariablesExpression runtimeVariables:
 						return RuntimeVariablesExpression(runtimeVariables, RuntimeVariables);
 
-					case ExpressionType.Loop:
+					case LoopExpression loop:
 						return LoopExpression(loop, Loop);
 
-					case ExpressionType.Switch:
+					case SwitchExpression @switch:
 						return SwitchExpression(@switch, Switch);
 
-					case ExpressionType.Throw:
-						return Unary(unary, ex => Throw(ex, unary.Type));
-
-					case ExpressionType.Try:
+					case TryExpression @try:
 						return TryExpression(@try, TryCatchFinally);
-
-					case ExpressionType.Unbox:
-						return Unary(unary, ex => Unbox(ex, unary.Type));
-
-					case ExpressionType.AddAssign:
-						return Binary(binary, AddAssign);
-
-					case ExpressionType.AndAssign:
-						return Binary(binary, AndAssign);
-
-					case ExpressionType.DivideAssign:
-						return Binary(binary, DivideAssign);
-
-					case ExpressionType.ExclusiveOrAssign:
-						return Binary(binary, ExclusiveOrAssign);
-
-					case ExpressionType.LeftShiftAssign:
-						return Binary(binary, LeftShiftAssign);
-
-					case ExpressionType.ModuloAssign:
-						return Binary(binary, ModuloAssign);
-
-					case ExpressionType.MultiplyAssign:
-						return Binary(binary, MultiplyAssign);
-
-					case ExpressionType.OrAssign:
-						return Binary(binary, OrAssign);
-
-					case ExpressionType.PowerAssign:
-						return Binary(binary, PowerAssign);
-
-					case ExpressionType.RightShiftAssign:
-						return Binary(binary, RightShiftAssign);
-
-					case ExpressionType.SubtractAssign:
-						return Binary(binary, SubtractAssign);
-
-					case ExpressionType.AddAssignChecked:
-						return Binary(binary, AddAssignChecked);
-
-					case ExpressionType.MultiplyAssignChecked:
-						return Binary(binary, MultiplyAssignChecked);
-
-					case ExpressionType.SubtractAssignChecked:
-						return Binary(binary, SubtractAssignChecked);
-
-					case ExpressionType.PreIncrementAssign:
-						return Unary(unary, PreIncrementAssign);
-
-					case ExpressionType.PreDecrementAssign:
-						return Unary(unary, PreDecrementAssign);
-
-					case ExpressionType.PostIncrementAssign:
-						return Unary(unary, PostIncrementAssign);
-
-					case ExpressionType.PostDecrementAssign:
-						return Unary(unary, PostIncrementAssign);
-
-					case ExpressionType.TypeEqual:
-						return TypeBinaryExpression(typeBinary, TypeEqual);
-
-					case ExpressionType.OnesComplement:
-						return Unary(unary, OnesComplement);
-
-					case ExpressionType.IsTrue:
-						return Unary(unary, IsTrue);
-
-					case ExpressionType.IsFalse:
-						return Unary(unary, IsFalse);
 
 					default:
 						return exp;
@@ -355,6 +176,76 @@ namespace ShlomiBo.Expressed
 				return new TraversalResult(result, wholeInstance && args.All(arg => arg.TraversedWholeExpression));
 			}
 
+			TraversalResult UnaryExpressions(
+				UnaryExpression unary)
+			{
+				switch (unary.NodeType)
+				{
+					case ExpressionType.ArrayLength:
+						return Unary(unary, ArrayLength);
+
+					case ExpressionType.Convert:
+						return Unary(unary, ex => Convert(ex, unary.Type));
+
+					case ExpressionType.ConvertChecked:
+						return Unary(unary, ex => ConvertChecked(ex, unary.Type));
+
+					case ExpressionType.Negate:
+						return Unary(unary, Negate);
+
+					case ExpressionType.UnaryPlus:
+						return Unary(unary, UnaryPlus);
+
+					case ExpressionType.NegateChecked:
+						return Unary(unary, NegateChecked);
+
+					case ExpressionType.Not:
+						return Unary(unary, Not);
+
+					case ExpressionType.Quote:
+						return Unary(unary, Quote);
+
+					case ExpressionType.TypeAs:
+						return Unary(unary, ex => TypeAs(ex, unary.Type));
+
+					case ExpressionType.Decrement:
+						return Unary(unary, Decrement);
+
+					case ExpressionType.Increment:
+						return Unary(unary, Increment);
+
+					case ExpressionType.Throw:
+						return Unary(unary, ex => Throw(ex, unary.Type));
+
+					case ExpressionType.Unbox:
+						return Unary(unary, ex => Unbox(ex, unary.Type));
+
+					case ExpressionType.PreIncrementAssign:
+						return Unary(unary, PreIncrementAssign);
+
+					case ExpressionType.PreDecrementAssign:
+						return Unary(unary, PreDecrementAssign);
+
+					case ExpressionType.PostIncrementAssign:
+						return Unary(unary, PostIncrementAssign);
+
+					case ExpressionType.PostDecrementAssign:
+						return Unary(unary, PostIncrementAssign);
+
+					case ExpressionType.OnesComplement:
+						return Unary(unary, OnesComplement);
+
+					case ExpressionType.IsTrue:
+						return Unary(unary, IsTrue);
+
+					case ExpressionType.IsFalse:
+						return Unary(unary, IsFalse);
+
+					default:
+						throw new InvalidOperationException($"Invalid unary expression: {unary.NodeType}");
+				}
+			}
+
 			TraversalResult Unary(
 				UnaryExpression unary,
 				Func<Expression, UnaryExpression> create)
@@ -366,12 +257,138 @@ namespace ShlomiBo.Expressed
 				return new TraversalResult(result, whole);
 			}
 
+			TraversalResult BinaryExpressions(BinaryExpression binaryExpression)
+			{
+				switch (binaryExpression.NodeType)
+				{
+					case ExpressionType.Add:
+						return Binary(binaryExpression, Add);
+
+					case ExpressionType.AddChecked:
+						return Binary(binaryExpression, AddChecked);
+
+					case ExpressionType.And:
+						return Binary(binaryExpression, And);
+
+					case ExpressionType.AndAlso:
+						return Binary(binaryExpression, AndAlso);
+
+					case ExpressionType.ArrayIndex:
+						return Binary(binaryExpression, ArrayIndex);
+
+					case ExpressionType.Coalesce:
+						return Binary(binaryExpression, Coalesce);
+
+					case ExpressionType.Divide:
+						return Binary(binaryExpression, Divide);
+
+					case ExpressionType.Equal:
+						return Binary(binaryExpression, Equal);
+
+					case ExpressionType.ExclusiveOr:
+						return Binary(binaryExpression, ExclusiveOr);
+
+					case ExpressionType.GreaterThan:
+						return Binary(binaryExpression, GreaterThan);
+
+					case ExpressionType.GreaterThanOrEqual:
+						return Binary(binaryExpression, GreaterThanOrEqual);
+
+					case ExpressionType.LeftShift:
+						return Binary(binaryExpression, LeftShift);
+
+					case ExpressionType.LessThan:
+						return Binary(binaryExpression, LessThan);
+
+					case ExpressionType.LessThanOrEqual:
+						return Binary(binaryExpression, LessThanOrEqual);
+
+					case ExpressionType.Modulo:
+						return Binary(binaryExpression, Modulo);
+
+					case ExpressionType.Multiply:
+						return Binary(binaryExpression, Multiply);
+
+					case ExpressionType.MultiplyChecked:
+						return Binary(binaryExpression, MultiplyChecked);
+
+					case ExpressionType.NotEqual:
+						return Binary(binaryExpression, NotEqual);
+
+					case ExpressionType.Or:
+						return Binary(binaryExpression, Or);
+
+					case ExpressionType.OrElse:
+						return Binary(binaryExpression, OrElse);
+
+					case ExpressionType.Power:
+						return Binary(binaryExpression, Power);
+
+					case ExpressionType.RightShift:
+						return Binary(binaryExpression, RightShift);
+
+					case ExpressionType.Subtract:
+						return Binary(binaryExpression, Subtract);
+
+					case ExpressionType.SubtractChecked:
+						return Binary(binaryExpression, SubtractChecked);
+
+					case ExpressionType.Assign:
+						return Binary(binaryExpression, Assign);
+
+					case ExpressionType.AddAssign:
+						return Binary(binaryExpression, AddAssign);
+
+					case ExpressionType.AndAssign:
+						return Binary(binaryExpression, AndAssign);
+
+					case ExpressionType.DivideAssign:
+						return Binary(binaryExpression, DivideAssign);
+
+					case ExpressionType.ExclusiveOrAssign:
+						return Binary(binaryExpression, ExclusiveOrAssign);
+
+					case ExpressionType.LeftShiftAssign:
+						return Binary(binaryExpression, LeftShiftAssign);
+
+					case ExpressionType.ModuloAssign:
+						return Binary(binaryExpression, ModuloAssign);
+
+					case ExpressionType.MultiplyAssign:
+						return Binary(binaryExpression, MultiplyAssign);
+
+					case ExpressionType.OrAssign:
+						return Binary(binaryExpression, OrAssign);
+
+					case ExpressionType.PowerAssign:
+						return Binary(binaryExpression, PowerAssign);
+
+					case ExpressionType.RightShiftAssign:
+						return Binary(binaryExpression, RightShiftAssign);
+
+					case ExpressionType.SubtractAssign:
+						return Binary(binaryExpression, SubtractAssign);
+
+					case ExpressionType.AddAssignChecked:
+						return Binary(binaryExpression, AddAssignChecked);
+
+					case ExpressionType.MultiplyAssignChecked:
+						return Binary(binaryExpression, MultiplyAssignChecked);
+
+					case ExpressionType.SubtractAssignChecked:
+						return Binary(binaryExpression, SubtractAssignChecked);
+
+					default:
+						throw new InvalidOperationException($"Unknown expression type: [{binaryExpression.NodeType}]");
+				}
+			}
+
 			TraversalResult Binary(
-				BinaryExpression binary,
+				BinaryExpression binaryExpression,
 				Func<Expression, Expression, BinaryExpression> create)
 			{
-				var (left, wholeLeft) = Implementation(binary.Left);
-				var (right, wholeRight) = Implementation(binary.Right);
+				var (left, wholeLeft) = Implementation(binaryExpression.Left);
+				var (right, wholeRight) = Implementation(binaryExpression.Right);
 
 				var result = create(
 					left,
@@ -450,6 +467,23 @@ namespace ShlomiBo.Expressed
 				return new TraversalResult(result, args.All(arg => arg.TraversedWholeExpression));
 			}
 
+			TraversalResult NewArrayExpressions(
+				NewArrayExpression newArray)
+			{
+				switch (newArray.NodeType)
+				{
+					case ExpressionType.NewArrayInit:
+						return NewArrayExpression(newArray, NewArrayInit);
+
+					case ExpressionType.NewArrayBounds:
+						return NewArrayExpression(newArray, NewArrayBounds);
+
+
+					default:
+						throw new InvalidOperationException($"Invalid NewArrayExpression [{newArray.NodeType}]");
+				}
+			}
+
 			TraversalResult NewArrayExpression(
 				NewArrayExpression newArray,
 				Func<Type, IEnumerable<Expression>, NewArrayExpression> create)
@@ -463,6 +497,22 @@ namespace ShlomiBo.Expressed
 					expressions.Select(e => e.Result));
 
 				return new TraversalResult(result, expressions.All(e => e.TraversedWholeExpression));
+			}
+
+			TraversalResult TypeBinaryExpressions(
+				TypeBinaryExpression typeBinary)
+			{
+				switch (typeBinary.NodeType)
+				{
+					case ExpressionType.TypeIs:
+						return TypeBinaryExpression(typeBinary, TypeIs);
+
+					case ExpressionType.TypeEqual:
+						return TypeBinaryExpression(typeBinary, TypeEqual);
+
+					default:
+						throw new InvalidOperationException($"Invalid TypeBinaryExpression [{typeBinary.NodeType}]");
+				}
 			}
 
 			TraversalResult TypeBinaryExpression(
@@ -661,16 +711,32 @@ namespace ShlomiBo.Expressed
 
 		#region Structs
 
+		/// <summary>
+		/// A type represnts the result of subexression traversal
+		/// </summary>
 		public struct TraversalResult
 		{
 			#region Properties
 
+			/// <summary>
+			/// Gets the result subexpression
+			/// </summary>
 			public Expression Result { get; }
+			/// <summary>
+			/// Gets a value that indicates if all of the input expression was traversed
+			/// </summary>
 			public bool TraversedWholeExpression { get; }
 			#endregion Properties
 
 			#region Constructors
 
+			/// <summary>
+			/// Creates new intance
+			/// </summary>
+			/// <param name="result">The result subexpression</param>
+			/// <param name="traversedWholeExpression">
+			/// A value that indicates if all of the input expression was traversed
+			/// </param>
 			public TraversalResult(Expression result, bool traversedWholeExpression)
 			{
 				this.Result = result;
@@ -681,11 +747,18 @@ namespace ShlomiBo.Expressed
 
 			#region Methods
 
+			/// <summary>
+			/// </summary>
+			/// <param name="result"></param>
 			public static implicit operator TraversalResult(Expression result) =>
 				result is null
 					? default
 					: new TraversalResult(result, true);
 
+			/// <summary>
+			/// </summary>
+			/// <param name="expression"></param>
+			/// <param name="traversedWholeExpression"></param>
 			public void Deconstruct(out Expression expression, out bool traversedWholeExpression)
 			{
 				expression = this.Result;
@@ -699,17 +772,34 @@ namespace ShlomiBo.Expressed
 
 		#region Classes
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public sealed class ExpressionTraversal
 		{
 			#region Properties
 
-			public static ExpressionTraversal Default { get; } = new ExpressionTraversal
+			/// <summary>
+			/// Gets the default traversal which is - keep the input expression,
+			/// but traverse its subexpressions
+			/// </summary>
+			public static ExpressionTraversal Default => new ExpressionTraversal
 			{
 				TraverseSubTree = true,
 			};
 
+			/// <summary>
+			/// Gets a value indicates if traversal should continue
+			/// </summary>
 			public bool Break { get; set; }
+			/// <summary>
+			/// Gets the result expression for the traversal, or null, to keep the input expression
+			/// </summary>
 			public Expression NewExpression { get; set; }
+			/// <summary>
+			/// A value indicates if traversal of current expression should continue to its subexpressions
+			/// or siblings
+			/// </summary>
 			public bool TraverseSubTree { get; set; } = true;
 			#endregion Properties
 		}
